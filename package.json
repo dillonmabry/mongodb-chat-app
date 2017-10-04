@@ -1,0 +1,17 @@
+{
+  "name": "mongodb-chat-app",
+  "version": "1.0.0",
+  "description": "Simple chat app with mongodb",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "Dillon",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.16.1",
+    "moment": "^2.18.1",
+    "mongodb": "^2.2.31",
+    "socket.io": "^2.0.3"
+  }
+}

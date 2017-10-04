@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>MongoChat App</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://bootswatch.com/4-alpha/litera/bootstrap.min.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js" integrity="sha384-DztdAPBWPRXSA/3eYEEUWrWCy7G5KFbe8fFjk5JAIxUYHKkDx6Qin1DkWx51bBrb" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.min.js"></script>
+</head>
+<style>
+        #messages {
+            height:300px;
+            max-height:300px;
+            overflow-y:auto;
+        }
+        .chat-message {
+            word-wrap: break-word;
+        }
+        .main {
+            margin-top:30px;
+        }
+        #status {
+            font-size:14px;
+            padding:10px;
+        }
+        ::-webkit-scrollbar-track
+        {
+        	-webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3);
+        	border-radius: 0px;
+        	background-color: #F5F5F5;
+        }
+        
+        ::-webkit-scrollbar
+        {
+        	width: 12px;
+        	background-color: #F5F5F5;
+        }
+        
+        ::-webkit-scrollbar-thumb
+        {
+        	border-radius: 0px;
+        	-webkit-box-shadow: inset 0 0 6px rgba(0,0,0,.3);
+        	background-color: #d9534f;
+        }
+</style>
+<body>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8 offset-md-2 col-sm-12 main">
+                <h1 class="text-center">
+                    MongoChat 
+                </h1>
+                <br/>
+                <div id="chat">
+                    <input type="text" id="username" class="form-control"
+                    placeholder="Enter name..." autofocus>
+                    <br/>
+                    <div class="card">
+                        <div id="messages" class="card-block">
+                        </div>
+                        <div id="status" class="card-block">
+                            <i>Welcome to the Chat! A nice day today isn't it?</i>
+                        </div>
+                    </div>
+                    <br/>
+                    <textarea id="textarea" class="form-control" placeholder="Enter message..."></textarea>
+                </div>
+                <br/>
+                <button id="clear" class="btn btn-danger">Clear Chat</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        $(function(){
+            // GET DOM ELEMENTS
+            var status = $("#status");
+            var messages = $("#messages");
+            var textarea = $("#textarea");
+            var username = $("#username");
+            var clearBtn = $("#clear");
+            var messageItems = $("#messages > .chat-message");
+            
+            // SET INIT STATUS
+            var defaultStatus = status.html();
+
+            var setStatus = function(s){
+                // SET STATUS
+                status.html(s);
+                
+                // RESET TO DEFAULT AFTER 4 SECONDS
+                if(s !== defaultStatus) {
+                    var delay = setTimeout(function(){ 
+                        setStatus(defaultStatus);
+                    }, 4000)
+                }
+            };
+            
+            // CONNECT TO SOCKET.IO
+            var socket = io.connect();
+            
+            // CHECK CONNECTION
+            if(socket) {
+                console.log('Connected to socket.io via client...');
+                
+                // SHOW MESSAGES
+                socket.on('output', function(data){
+                    if(data) {
+                        $.each(data, function(i, val){
+                            messages.append("<div class='chat-message'>"
+                            +val.time+"&nbsp; <strong>"+ val.name +"</strong>: "
+                            + val.message +"</div>");
+                        })
+                        // KEEP DIV SCROLLED TO BOTTOM
+                        messages.animate({ scrollTop: messages[0].scrollHeight }, 200);
+                    } 
+                });
+                
+                // HANDLE INPUT
+                textarea.on('keydown', function(event){
+                    // IF ENTER KEY AND NOT HOLDING SHIFT
+                    if(event.which === 13 && event.shiftKey == false) {
+                        socket.emit('input', {
+                           name: username.val(),
+                           message: textarea.val(),
+                           time: moment(new Date().getTime()).format('hh:mm:ss')
+                        });
+                        textarea.val('');
+                        event.preventDefault();
+                    }
+                });
+                
+                // GET STATUS
+                socket.on('status', function(data){
+                    
+                    // GET MSG STATUS
+                    setStatus((typeof data == 'object') ? data.message : data);
+                    
+                    // IF STATUS IS CLEAR THEN CLEAR TEXT
+                    if(data.clear) {
+                        textarea.value = '';
+                    }
+                });
+                
+                //HANDLE CLEAR
+                clearBtn.click(function(){
+                   socket.emit('clear'); 
+                });
+                
+                // CLEAR MESSAGE
+                socket.on('cleared', function(){
+                   messages.textContent = ''; 
+                   messages.html('');
+                });
+                
+            } else {
+                console.log(socket.err);
+            }
+        });
+    </script>
+    
+</body>
+</html>
